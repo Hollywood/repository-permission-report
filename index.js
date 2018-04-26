@@ -1,24 +1,27 @@
+const fs = require('fs');
+const Json2csvParser = require('json2csv').Parser;
+
 var GithubGraphQLApi = require('node-github-graphql')
-var organization = "albatoss"
+var organization = "ORG_NAME_HERE"
 var github = new GithubGraphQLApi({
   Promise: require('bluebird'),
-  token: 'A_GITHUB_PAT_GOES_HERE',
+  token: 'GITHUB_PAT_HERE',
   //userAgent: 'Hello', // Optional, if not specified, a default user agent will be used
   debug: true
 })
 github.query(`
 {
   organization(login: "${organization}") {
-    teams(first: 5) {
+    teams(first: 100) {
       edges {
         node {
           name
-          repositories(first: 5) {
+          repositories(first: 10) {
             edges {
               permission
               node {
                 name
-                collaborators(first:5, affiliation:OUTSIDE) {
+                collaborators(first:100, affiliation:OUTSIDE) {
                   edges {
                     permission
                     node {
@@ -33,7 +36,7 @@ github.query(`
               endCursor
             }
           }
-          members(first: 5) {
+          members(first: 100) {
             nodes {
               login
             }
@@ -57,69 +60,43 @@ github.query(`
   var repositories = []
   var collaborators = []
 
-  response.data.organization.teams.edges.forEach((team, teamIndex) => {
-    //teams.push(team.node)
-    teams[teamIndex] = {}
-    //Abstract Members
-    team.node.members.nodes.forEach((member, index) => {
-      members[index] = {}
-      members[index].member = member.login
-      members[index].team = team.node.name
-    })
+  const table = []
 
-    teams[teamIndex].team = team.node.name
-    teams[teamIndex].members = members
-    teams[teamIndex].permission = ""
+  response.data.organization.teams.edges.forEach((team) => {
+    const teamName = team.node.name
+    var repo = "No Repo Assigned"
+    var permission = "NONE"
 
-    //Abstract Repositories
-    team.node.repositories.edges.forEach((repo, index) => {
-      repositories[index] = {}
-      repositories[index].repository = repo.node.name
-      teams[teamIndex].permission = repo.permission
-
-      //Abstract Collaborators
-      repo.node.collaborators.edges.forEach((collaborator, index) => {
-          collaborators[index] = {}
-          collaborators[index].permission = collaborator.permission
-          collaborators[index].collaborator = collaborator.node.login
-      })
-
-      repositories[index].collaborators = collaborators
-      repositories[index].teams = teams
-    })
-  })
-
-  var teamResults = teams
-  var repoResults = repositories
-  var collaboratorResults = collaborators
-  var memberResults = members
-
-  repositories.forEach((repo, index) => {
-    console.log('Repository: ' + repo.repository)
-    repositories[index].teams.forEach((team, index) => {
-      console.log(' Team: ' + team.team)
-      if (team.permission){
-        console.log('   Repo Permission: ' + team.permission)
-      } else {
-        console.log('   No Permissions')
+    team.node.repositories.edges.forEach(edge => {
+      if(edge.node.name) {
+        repo = edge.node.name
       }
-      
-      team.members.forEach((member, index) => {
-        console.log('     User: ' + member.member)
-      })
 
-      if(repo.collaborators.length > 0){
-        console.log('     Collaborators')
+      permission = edge.permission
 
-        repo.collaborators.forEach((collab, index) => {
-          console.log('       Collaborator: ' + collab.collaborator)
-          console.log('       Permission: ' + collab.permission)
+      edge.node.collaborators.edges.forEach(collaborator => {
+        table.push({
+          repo, type: 'collab', team: teamName, user: collaborator.node.login, permission: collaborator.permission
         })
-      }
-      
+      })
+    })
 
+    team.node.members.nodes.forEach(node => {
+      table.push({
+        repo, type: 'member', team: teamName, user: node.login, permission: permission
+      })
     })
   })
-  //console.log(repositories[0])
+
+  var jsonResults = JSON.stringify(table)
+
+ const fields = ['repo', 'type', 'team', 'user', 'permission']
+ var json2csvParser = new Json2csvParser({ fields, delimiter: ';' })
+ const csv = json2csvParser.parse(table)
+
+fs.writeFile('repo-permissions.csv', csv, function(err) {
+  if(err) throw err
+  console.log('file saved!')
+})
 
 }).catch((err) => { console.log(err) })

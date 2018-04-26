@@ -9,8 +9,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.16.2",
+    "express": "^4.16.3",
     "fetch": "^1.1.0",
-    "node-github-graphql": "^0.2.6"
+    "node-github-graphql": "^0.2.6",
+    "json2csv": "4.1.2"
   }
 }
