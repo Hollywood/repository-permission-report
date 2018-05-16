@@ -1,27 +1,36 @@
 const fs = require('fs');
 const Json2csvParser = require('json2csv').Parser;
-var hasNextPage = true
 var GithubGraphQLApi = require('node-github-graphql')
-var organization = "ORG_NAME_HERE"
+const queryParams = 'first: 25';
+const teamHasNextPage = true;
+const repoHasNextPage = true;
+const organization = "albatoss";
+const ghToken = "09ddd325a9d7514ccd7462836934edac06414c81";
 var github = new GithubGraphQLApi({
   Promise: require('bluebird'),
-  token: 'GITHUB_PAT_HERE',
+  token: ghToken,
   debug: false
 })
+
+//Get list of all Orgs and Member accounts
+//Loop through each of these results
+//Run GraphQL SEARCH query type:REPOSITORY and query: "org:CURRENT_ORG/MEMBER"
+//All repositories and the associated members/permissions
+
 
 github.query(`
 {
   organization(login: "${organization}") {
-    teams(first: 100) {
+    teams(${queryParams}) {
       edges {
         node {
           name
-          repositories(first: 10) {
+          repositories(${queryParams}) {
             edges {
               permission
               node {
                 name
-                collaborators(first:100, affiliation:OUTSIDE) {
+                collaborators(${queryParams}, affiliation:OUTSIDE) {
                   edges {
                     permission
                     node {
@@ -36,7 +45,7 @@ github.query(`
               endCursor
             }
           }
-          members(first: 100) {
+          members(${queryParams}) {
             nodes {
               login
             }
@@ -54,6 +63,7 @@ github.query(`
   var table = []
 
   //Loop through response obj and push into object array
+  //NEED to implement pagination
   response.data.organization.teams.edges.forEach((team) => {
     const teamName = team.node.name
     var repo = "No Repo Assigned"
@@ -97,7 +107,7 @@ github.query(`
 
   //Sort by Team 
   table.sort(function (a, b) {
-    return (a.team > b.team) ? 1 : ((b.team > a.team) ? -1 : 0);
+    return a.repo > b.repo ? 1 : b.repo > a.repo ? -1 : 0;
   });
 
   //Write to CSV file
