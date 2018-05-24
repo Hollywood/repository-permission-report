@@ -4,8 +4,8 @@ var GithubGraphQLApi = require('node-github-graphql')
 const queryParams = 'first: 25';
 const teamHasNextPage = true;
 const repoHasNextPage = true;
-const organization = "albatoss";
-const ghToken = "09ddd325a9d7514ccd7462836934edac06414c81";
+const organization = "YOUR_GH_ORG";
+const ghToken = "YOUR_GH_PAT";
 var github = new GithubGraphQLApi({
   Promise: require('bluebird'),
   token: ghToken,
@@ -17,6 +17,16 @@ var github = new GithubGraphQLApi({
 //Run GraphQL SEARCH query type:REPOSITORY and query: "org:CURRENT_ORG/MEMBER"
 //All repositories and the associated members/permissions
 
+//Proposed workflow
+//1. Import file containing list of required Orgs (provided by client)
+//2. Loop through each and call the GH APIs to: capture each team, the repositories it has access to and permissions, and the members of said team.
+//3. Add a distinct list of the members to an array object.
+//4. Save/flatten the Org data into a table.
+//5. Within each Org, loop through the array of members and pull all repositories they own, the members who have access to them, and their access level (PERSONAL can be the default team name)
+//6. Append and flatten data into the existing table.
+//7. Proceed to next Org.
+//8. Since a member on a single instance can belong to multiple orgs, we need to remove the duplicate records.
+//9. Output CSV.
 
 github.query(`
 {
