@@ -3,6 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const Json2csvParser = require('json2csv').Parser;
 const github = require('@octokit/rest')()
+require('./pagination')(github)
 github.authenticate({
   type: 'token',
   token: process.env.ghToken
