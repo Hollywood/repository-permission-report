@@ -1,16 +1,13 @@
-const fs = require('fs');
+require('dotenv').config()
+const fs = require('fs')
+const path = require('path')
 const Json2csvParser = require('json2csv').Parser;
-var GithubGraphQLApi = require('node-github-graphql')
-const queryParams = 'first: 25';
-const teamHasNextPage = true;
-const repoHasNextPage = true;
-const organization = "YOUR_GH_ORG";
-const ghToken = "YOUR_GH_PAT";
-var github = new GithubGraphQLApi({
-  Promise: require('bluebird'),
-  token: ghToken,
-  debug: false
+const github = require('@octokit/rest')()
+github.authenticate({
+  type: 'token',
+  token: process.env.ghToken
 })
+
 
 //Get list of all Orgs and Member accounts
 //Loop through each of these results
@@ -27,86 +24,16 @@ var github = new GithubGraphQLApi({
 //7. Proceed to next Org.
 //8. Since a member on a single instance can belong to multiple orgs, we need to remove the duplicate records.
 //9. Output CSV.
+  
+  var orgList = fs.readFileSync(path.join(~/Documents/FakeDir, 'org-list.csv'), "utf8")
+  var orgArray = orgList.split(',')
+  
+  for (let i = 0; i < orgArray.length; i++) {
+    const orgName = orgArray[i];
+    
+    var orgTeams = await github.orgs.getTeams({'org':orgName})
 
-github.query(`
-{
-  organization(login: "${organization}") {
-    teams(${queryParams}) {
-      edges {
-        node {
-          name
-          repositories(${queryParams}) {
-            edges {
-              permission
-              node {
-                name
-                collaborators(${queryParams}, affiliation:OUTSIDE) {
-                  edges {
-                    permission
-                    node {
-                      login
-                    }
-                  }
-                }
-              }
-            }
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-          }
-          members(${queryParams}) {
-            nodes {
-              login
-            }
-          }
-        }
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-    }
   }
-}
-`).then(function (response) {
-  var table = []
-
-  //Loop through response obj and push into object array
-  //NEED to implement pagination
-  response.data.organization.teams.edges.forEach((team) => {
-    const teamName = team.node.name
-    var repo = "No Repo Assigned"
-    var permission = "NONE"
-
-    team.node.repositories.edges.forEach(edge => {
-      if (edge.node.name) {
-        repo = edge.node.name
-      }
-
-      permission = edge.permission
-
-      team.node.members.nodes.forEach(node => {
-        table.push({
-          repo,
-          type: 'member',
-          team: teamName,
-          user: node.login,
-          permission: permission
-        })
-      })
-
-      edge.node.collaborators.edges.forEach(collaborator => {
-        table.push({
-          repo,
-          type: 'collab',
-          team: 'outside collaborator',
-          user: collaborator.node.login,
-          permission: collaborator.permission
-        })
-      })
-    })
-  })
 
   //Remove Duplicates
   table = table.filter((table, index, self) =>
