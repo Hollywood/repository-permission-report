@@ -2,40 +2,104 @@ require('dotenv').config()
 const fs = require('fs')
 const path = require('path')
 const Json2csvParser = require('json2csv').Parser;
-const github = require('@octokit/rest')()
+const github = require('@octokit/rest')({
+  headers: {
+    accept: 'application/vnd.github.hellcat-preview+json'
+  },
+  //Set this to GHE url
+  baseUrl: ''
+})
 require('./pagination')(github)
+
 github.authenticate({
   type: 'token',
   token: process.env.ghToken
 })
 
+var table = []
 
-//Get list of all Orgs and Member accounts
-//Loop through each of these results
-//Run GraphQL SEARCH query type:REPOSITORY and query: "org:CURRENT_ORG/MEMBER"
-//All repositories and the associated members/permissions
+async function getData() {
+  const orgs = [].concat.apply([], (await github.paginate(github.orgs.getAll())).map(d => d.data.map(n => n.login)))
+  const members = [].concat.apply([], (await github.paginate(github.users.getAll())).map(d => d.data.map(n => n.login)))
 
-//Proposed workflow
-//1. Import file containing list of required Orgs (provided by client)
-//2. Loop through each and call the GH APIs to: capture each team, the repositories it has access to and permissions, and the members of said team.
-//3. Add a distinct list of the members to an array object.
-//4. Save/flatten the Org data into a table.
-//5. Within each Org, loop through the array of members and pull all repositories they own, the members who have access to them, and their access level (PERSONAL can be the default team name)
-//6. Append and flatten data into the existing table.
-//7. Proceed to next Org.
-//8. Since a member on a single instance can belong to multiple orgs, we need to remove the duplicate records.
-//9. Output CSV.
-  
-  var orgList = fs.readFileSync(path.join(~/Documents/FakeDir, 'org-list.csv'), "utf8")
-  var orgArray = orgList.split(',')
-  
-  for (let i = 0; i < orgArray.length; i++) {
-    const orgName = orgArray[i];
-    
-    var orgTeams = await github.orgs.getTeams({'org':orgName})
+  var memberNames = []
 
+  for (const org of orgs) {
+    //Get all repositories for the organization
+    var repos = [].concat.apply([], (await github.paginate(github.repos.getForOrg({
+      org: org
+    }))).map(d => d.data.map(r => r)))
+
+    for (const repo of repos) {
+      //Pull a list of teams and their access to the current repository
+      const repoTeams = [].concat.apply([], (await github.paginate(github.repos.getTeams({
+        owner: org,
+        repo: repo.name
+      }))).map(d => d.data.map(t => t)))
+
+      //Pull a list of outside collaborators for the current repository
+      const repoCollabs = [].concat.apply([], (await github.paginate(github.repos.getCollaborators({
+        owner: org,
+        repo: repo.name,
+        affiliation: 'outside'
+      }))).map(d => d.data.map(c => c)))
+
+      //Loop teams and query permissions and members
+      for (const team of repoTeams) {
+        const memberData = await github.paginate(github.orgs.getTeamMembers({
+          id: team.id
+        }))
+
+        memberNames = [].concat.apply([], memberData.map(d => d.data.map(n => n.login)))
+
+        var repoData = await github.paginate(github.orgs.getTeamRepos({
+          id: team.id
+        }))
+
+        const teamOrg = (await github.orgs.getTeam({
+          id: team.id
+        })).data.organization.login
+
+        table.push({
+          org: org,
+          team: team.name,
+          member: memberNames[0],
+          repo: repo.name,
+          type: 'MEMBER',
+          permission: team.permission
+        })
+      }
+
+      for (const collab of repoCollabs) {
+        table.push({
+          org: org,
+          team: 'N/A',
+          member: collab.login,
+          repo: repo.name,
+          type: 'COLLAB',
+          permission: 'Push' //Placeholder
+        })
+      }
+    }
   }
 
+  //get member repositories
+  for (const member of members) {
+
+    const memberRepos = await github.paginate(github.repos.getForUser({
+      username: member,
+      type: 'all'
+    }))
+
+    memberRepo = [].concat.apply([], memberRepos.map(d => d.data.map(n => n.name)))
+
+    for (const repo of memberRepo) {
+      console.log('Personal', member, member, repo, 'Owner')
+    }
+  }
+}
+
+getData().then(function() {
   //Remove Duplicates
   table = table.filter((table, index, self) =>
     index === self.findIndex((t) => (
@@ -61,5 +125,4 @@ github.authenticate({
     if (err) throw err
     console.log('file saved!')
   })
-
-}).catch(console.error)
+})
