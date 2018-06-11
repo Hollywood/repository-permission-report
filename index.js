@@ -22,9 +22,8 @@ async function getData() {
   const orgs = [].concat.apply([], (await github.paginate(github.orgs.getAll())).map(d => d.data.map(n => n.login)))
   const members = [].concat.apply([], (await github.paginate(github.users.getAll())).map(d => d.data.map(n => n.login)))
 
-  var memberNames = []
-
   for (const org of orgs) {
+
     //Get all repositories for the organization
     var repos = [].concat.apply([], (await github.paginate(github.repos.getForOrg({
       org: org
@@ -50,34 +49,28 @@ async function getData() {
           id: team.id
         }))
 
-        memberNames = [].concat.apply([], memberData.map(d => d.data.map(n => n.login)))
+        const teamMembers = [].concat.apply([], memberData.map(d => d.data.map(n => n.login)))
 
-        var repoData = await github.paginate(github.orgs.getTeamRepos({
-          id: team.id
-        }))
-
-        const teamOrg = (await github.orgs.getTeam({
-          id: team.id
-        })).data.organization.login
-
-        table.push({
-          org: org,
-          team: team.name,
-          member: memberNames[0],
-          repo: repo.name,
-          type: 'MEMBER',
-          permission: team.permission
-        })
+        for (const member of teamMembers) {
+          table.push({
+            org: org,
+            team: team.name,
+            user: member,
+            repo: repo.name,
+            type: 'MEMBER',
+            permission: team.permission
+          })
+        }
       }
 
       for (const collab of repoCollabs) {
-        table.push({
+         table.push({
           org: org,
           team: 'N/A',
-          member: collab.login,
+          user: collab.login,
           repo: repo.name,
           type: 'COLLAB',
-          permission: 'Push' //Placeholder
+          permission: collab.permissions.push ? 'push' : 'pull'
         })
       }
     }
@@ -94,7 +87,14 @@ async function getData() {
     memberRepo = [].concat.apply([], memberRepos.map(d => d.data.map(n => n.name)))
 
     for (const repo of memberRepo) {
-      console.log('Personal', member, member, repo, 'Owner')
+      table.push({
+        org: member,
+        team: 'N/A',
+        user: member,
+        repo: repo,
+        type: 'PERSONAL',
+        permission: 'owner'
+      })
     }
   }
 }
@@ -114,7 +114,7 @@ getData().then(function() {
 
   //Write to CSV file
   var jsonResults = JSON.stringify(table)
-  const fields = ['repo', 'type', 'team', 'user', 'permission']
+  const fields = ['org', 'repo', 'team', 'user', 'permission', 'type']
   var json2csvParser = new Json2csvParser({
     fields,
     delimiter: ';'
