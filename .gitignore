@@ -63,3 +63,8 @@ typings/
 # DS_Store file
 .DS_Store
 
+# Lock file
+package-lock.json
+
+# CSV Export
+*.csv
