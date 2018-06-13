@@ -2,18 +2,19 @@ require('dotenv').config()
 const fs = require('fs')
 const path = require('path')
 const Json2csvParser = require('json2csv').Parser;
+
 const github = require('@octokit/rest')({
   headers: {
     accept: 'application/vnd.github.hellcat-preview+json'
   },
   // Set this to GHE url
-  baseUrl: process.env.GHE_URL || ''
+  baseUrl: process.env.GHE_URL ? process.env.GHE_URL + '/api/v3' : ''
 })
 require('./pagination')(github)
 
 github.authenticate({
   type: 'token',
-  token: process.env.ghToken
+  token: process.env.GHE_TOKEN
 })
 
 let table = []
@@ -121,4 +122,4 @@ getData().then(() => {
     if (err) throw err
     console.log('file saved!')
   })
-})
+}).catch(console.error)
