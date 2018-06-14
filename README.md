@@ -21,7 +21,7 @@ This Node app will run some queries using GitHub's [Octokit](https://github.com/
 - A `.env` file with the following values:
   - GHE_TOKEN - The value of your Personal Access Token
   - GHE_URL - The URI of your GHE install with the api route appended
-    - https://YOUR_DOMAIN_NAME/api/v3
+    - https://YOUR_DOMAIN/api/v3
 
 ## Generating the Report
 
