@@ -14,7 +14,7 @@ require('./pagination')(github)
 
 github.authenticate({
   type: 'token',
-  token: process.env.GH_TOKEN
+  token: process.env.GHE_TOKEN
 })
 
 let table = []
