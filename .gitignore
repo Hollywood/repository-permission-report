@@ -57,9 +57,14 @@ typings/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
+# Environment Vars
 .env
 
 # DS_Store file
 .DS_Store
 
+# Lock file
+package-lock.json
+
+# CSV Export
+*.csv
