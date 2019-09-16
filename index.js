@@ -7,8 +7,8 @@ const github = require('@octokit/rest')({
   headers: {
     accept: 'application/vnd.github.hellcat-preview+json'
   },
-  // Set this to GHE url
-  baseUrl: process.env.GHE_URL ? process.env.GHE_URL + '/api/v3' : ''
+  // Set this to GHE url or will default to dotcom
+  baseUrl: process.env.GHE_URL ? process.env.GHE_URL + '/api/v3' : 'https://api.github.com'
 })
 require('./pagination')(github)
 
