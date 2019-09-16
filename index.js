@@ -24,13 +24,18 @@ async function getData () {
   const members = [].concat.apply([], (await github.paginate(github.users.getAll())).map(d => d.data.map(n => n.login)))
 
   for (const org of orgs) {
-
+    // Output current Org to console
+    console.log(`Current Org processing: ${org}`)
+    
     // Get all repositories for the organization
     const repos = [].concat.apply([], (await github.paginate(github.repos.getForOrg({
       org: org
     }))).map(d => d.data.map(r => r)))
 
     for (const repo of repos) {
+      // Output current Repository to console
+      console.log(`Current Repo processing: ${repo.name}. Remaining Repositories: ${repos.length}`)
+      
       // Pull a list of teams and their access to the current repository
       const repoTeams = [].concat.apply([], (await github.paginate(github.repos.getTeams({
         owner: org,
@@ -46,6 +51,9 @@ async function getData () {
 
       // Loop teams and query permissions and members
       for (const team of repoTeams) {
+        // Output current team to console
+        console.log(`Processing Team: ${team.slug}. Remaining Teams: ${repoTeams.length}`)
+
         const memberData = await github.paginate(github.orgs.getTeamMembers({
           id: team.id
         }))
@@ -77,24 +85,27 @@ async function getData () {
     }
   }
 
-  // Get member repositories
-  for (const member of members) {
-    const memberRepos = await github.paginate(github.repos.getForUser({
-      username: member,
-      type: 'all'
-    }))
 
-    memberRepo = [].concat.apply([], memberRepos.map(d => d.data.map(n => n.name)))
+  if (process.argv[0] === false) {
+    // Get member repositories
+    for (const member of members) {
+      const memberRepos = await github.paginate(github.repos.getForUser({
+        username: member,
+        type: 'all'
+      }))
 
-    for (const repo of memberRepo) {
-      table.push({
-        org: member,
-        team: 'N/A',
-        user: member,
-        repo: repo,
-        type: 'PERSONAL',
-        permission: 'owner'
-      })
+      memberRepo = [].concat.apply([], memberRepos.map(d => d.data.map(n => n.name)))
+
+      for (const repo of memberRepo) {
+        table.push({
+          org: member,
+          team: 'N/A',
+          user: member,
+          repo: repo,
+          type: 'PERSONAL',
+          permission: 'owner'
+        })
+      }
     }
   }
 }
