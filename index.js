@@ -1,64 +1,81 @@
 require('dotenv').config()
 const fs = require('fs')
-const path = require('path')
-const Json2csvParser = require('json2csv').Parser;
+const Json2csvParser = require('json2csv').Parser
 
 const github = require('@octokit/rest')({
-  headers: {
-    accept: 'application/vnd.github.hellcat-preview+json'
-  },
+  auth: `token ${process.env.GITHUB_TOKEN}`,
+  previews: [
+    'hellcat-preview'
+  ],
   // Set this to GHE url or will default to dotcom
-  baseUrl: process.env.GHE_URL ? process.env.GHE_URL + '/api/v3' : 'https://api.github.com'
-})
-require('./pagination')(github)
-
-github.authenticate({
-  type: 'token',
-  token: process.env.GHE_TOKEN
+  baseUrl: process.env.GITHUB_API_URL
 })
 
 let table = []
 
 async function getData () {
-  const orgs = [].concat.apply([], (await github.paginate(github.orgs.getAll())).map(d => d.data.map(n => n.login)))
-  const members = [].concat.apply([], (await github.paginate(github.users.getAll())).map(d => d.data.map(n => n.login)))
+  var orgs = []
+  const orgOptions = github.orgs.listForAuthenticatedUser.endpoint.merge()
+  await github.paginate(orgOptions).then(response => {
+    orgs = [].concat.apply([], response.map(r => r.login))
+  })
 
   for (const org of orgs) {
     // Output current Org to console
     console.log(`Current Org processing: ${org}`)
-    
+
+    var members = []
+    const memberOptions = github.orgs.listMembers.endpoint.merge({org: org})
+    await github.paginate(memberOptions).then(response => {
+      members = [].concat.apply([], response.map(r => r.login))
+    })
+
     // Get all repositories for the organization
-    const repos = [].concat.apply([], (await github.paginate(github.repos.getForOrg({
-      org: org
-    }))).map(d => d.data.map(r => r)))
+    var repos = []
+    const orgRepoOptions = github.repos.listForOrg.endpoint.merge({ org: org }) 
+    await github.paginate(orgRepoOptions).then(response => {
+      repos = [].concat.apply([], response.map(r => r))
+    })
 
     for (const repo of repos) {
       // Output current Repository to console
       console.log(`Current Repo processing: ${repo.name}. Remaining Repositories: ${repos.length}`)
-      
+
       // Pull a list of teams and their access to the current repository
-      const repoTeams = [].concat.apply([], (await github.paginate(github.repos.getTeams({
+      var repoTeams = []
+      const repoTeamOptions = github.repos.listTeams.endpoint.merge({
         owner: org,
         repo: repo.name
-      }))).map(d => d.data.map(t => t)))
+      })
+      await github.paginate(repoTeamOptions).then(response => {
+        repoTeams = [].concat.apply([], response.map(r => r))
+      })
+      console.log(repoTeams)
 
       // Pull a list of outside collaborators for the current repository
-      const repoCollabs = [].concat.apply([], (await github.paginate(github.repos.getCollaborators({
+      var repoCollabs = []
+      const collaboratorOptions = github.repos.listCollaborators.endpoint.merge({
         owner: org,
         repo: repo.name,
         affiliation: 'outside'
-      }))).map(d => d.data.map(c => c)))
+      })
+      await github.paginate(collaboratorOptions).then(response => {
+        repoCollabs = [].concat.apply([], response.map(r => r))
+      })
 
       // Loop teams and query permissions and members
       for (const team of repoTeams) {
         // Output current team to console
         console.log(`Processing Team: ${team.slug}. Remaining Teams: ${repoTeams.length}`)
 
-        const memberData = await github.paginate(github.orgs.getTeamMembers({
-          id: team.id
-        }))
+        var teamMembers = []
+        const teamMemberOptions = github.teams.listMembers.endpoint.merge({
+          team_id: team.id
+        })
 
-        const teamMembers = [].concat.apply([], memberData.map(d => d.data.map(n => n.login)))
+        await github.paginate(teamMemberOptions).then(response => {
+          teamMembers = [].concat.apply([], response.map(r => r.login))
+        })
 
         for (const member of teamMembers) {
           table.push({
@@ -73,7 +90,7 @@ async function getData () {
       }
 
       for (const collab of repoCollabs) {
-         table.push({
+        table.push({
           org: org,
           team: 'N/A',
           user: collab.login,
@@ -85,16 +102,15 @@ async function getData () {
     }
   }
 
-
   if (process.argv[0] === false) {
     // Get member repositories
     for (const member of members) {
-      const memberRepos = await github.paginate(github.repos.getForUser({
+      const memberRepos = await github.paginate(github.repos.listForUser({
         username: member,
         type: 'all'
       }))
 
-      memberRepo = [].concat.apply([], memberRepos.map(d => d.data.map(n => n.name)))
+      let memberRepo = [].concat.apply([], memberRepos.map(d => d.data.map(n => n.name)))
 
       for (const repo of memberRepo) {
         table.push({
@@ -118,10 +134,10 @@ getData().then(() => {
     ))
   )
 
-  // Sort by Team 
+  // Sort by Team
   table.sort((a, b) => {
     return a.repo > b.repo ? 1 : b.repo > a.repo ? -1 : 0;
-  });
+  })
 
   // Write to CSV file
   const fields = ['org', 'repo', 'team', 'user', 'permission', 'type']
