@@ -20,26 +20,30 @@ async function getData () {
     orgs = [].concat.apply([], response.map(r => r.login))
   })
 
+  var members = []
   for (const org of orgs) {
     // Output current Org to console
     console.log(`Current Org processing: ${org}`)
 
-    var members = []
-    const memberOptions = github.orgs.listMembers.endpoint.merge({org: org})
+    const memberOptions = github.orgs.listMembers.endpoint.merge({
+      org: org
+    })
     await github.paginate(memberOptions).then(response => {
-      members = [].concat.apply([], response.map(r => r.login))
+      members = new Set([].concat.apply([], response.map(r => r.login)))
     })
 
     // Get all repositories for the organization
     var repos = []
-    const orgRepoOptions = github.repos.listForOrg.endpoint.merge({ org: org }) 
+    const orgRepoOptions = github.repos.listForOrg.endpoint.merge({
+      org: org
+    })
     await github.paginate(orgRepoOptions).then(response => {
       repos = [].concat.apply([], response.map(r => r))
     })
 
     for (const repo of repos) {
       // Output current Repository to console
-      console.log(`Current Repo processing: ${repo.name}. Remaining Repositories: ${repos.length}`)
+      console.log(`Current Repo processing: ${repo.name}`)
 
       // Pull a list of teams and their access to the current repository
       var repoTeams = []
@@ -50,7 +54,6 @@ async function getData () {
       await github.paginate(repoTeamOptions).then(response => {
         repoTeams = [].concat.apply([], response.map(r => r))
       })
-      console.log(repoTeams)
 
       // Pull a list of outside collaborators for the current repository
       var repoCollabs = []
@@ -66,7 +69,7 @@ async function getData () {
       // Loop teams and query permissions and members
       for (const team of repoTeams) {
         // Output current team to console
-        console.log(`Processing Team: ${team.slug}. Remaining Teams: ${repoTeams.length}`)
+        console.log(`Processing Team: ${team.slug}`)
 
         var teamMembers = []
         const teamMemberOptions = github.teams.listMembers.endpoint.merge({
@@ -102,17 +105,20 @@ async function getData () {
     }
   }
 
-  if (process.argv[0] === false) {
+  if (process.argv[2] === 'true') {
     // Get member repositories
     for (const member of members) {
-      const memberRepos = await github.paginate(github.repos.listForUser({
+      var memberRepos = []
+      const memberRepoOptions = github.repos.listForUser.endpoint.merge({
         username: member,
         type: 'all'
-      }))
+      })
 
-      let memberRepo = [].concat.apply([], memberRepos.map(d => d.data.map(n => n.name)))
+      await github.paginate(memberRepoOptions).then(response => {
+        memberRepos = [].concat.apply([], response.map(n => n.name))
+      })
 
-      for (const repo of memberRepo) {
+      for (const repo of memberRepos) {
         table.push({
           org: member,
           team: 'N/A',
