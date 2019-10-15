@@ -19,11 +19,20 @@ This Node app will run some queries using GitHub's [Octokit](https://github.com/
   - admin:org (top level)
 
 - A `.env` file with the following values:
-  - GHE_TOKEN - The value of your Personal Access Token
-  - GHE_URL - The URI of your GHE install
-    - https://YOUR_GHE_URI (no trailing backslash)
+  - GITHUB_TOKEN - The value of your Personal Access Token
+  - GITHUB_API_URL - The URI of your GHE install or the URI of the GitHub.com API
+    - https://YOUR_GHE_URI/api/v3
+    - https://api.github.com
 
 ## Generating the Report
 
-A `.csv` file will be generated in the top level of the folder the project is contained in with the information gathered from the API calls. To run the application and generate the report, navigate to the project folder inside the terminal and type `node index.js`.
+A `.csv` file will be generated in the top level of the folder the project is contained in with the information gathered from the API calls. 
+
+### With Member owned repositories
+
+To run the application and include `member` repositories, navigate to the project folder inside the terminal and type `node index.js true`.
+
+### Without Member owned repositories
+
+To run the application and include `member` repositories, navigate to the project folder inside the terminal and type `node index.js false`.
   
