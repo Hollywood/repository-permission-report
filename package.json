@@ -11,7 +11,7 @@
   "dependencies": {
     "@octokit/rest": "^16.33.1",
     "dotenv": "^5.0.1",
-    "express": "^4.16.3",
+    "express": "^4.17.3",
     "fetch": "^1.1.0",
     "json2csv": "4.1.2",
     "node-github-graphql": "^0.2.7"
